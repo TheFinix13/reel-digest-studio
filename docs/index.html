@@ -168,7 +168,7 @@ button{font:inherit;color:inherit}
 <header>
   <div>
     <h1>Reel Digest Studio</h1>
-    <p>Save Instagram videos you like. This system reads them, fact-checks them and turns the good ideas into real improvements, while rejecting the hype..</p>
+    <p>Save Instagram videos you like. This system reads them, fact-checks them and turns the good ideas into real improvements, while rejecting the hype.</p>
   </div>
   <div class="ctrl" id="ctrl"></div>
 </header>
@@ -288,7 +288,7 @@ ST.forEach((s,i)=>{
 const packG=mk('g',{},map);
 
 /* counters count up on load */
-(function(){const t0=performance.now(),d=RM?1:1300;(function f(t){const k=Math.min(1,(t-t0)/d),e=1-Math.pow(1-k,3);ST.forEach(s=>s.numEl.textContent=fmt(Math.round(s.num*e)));if(k<1)requestAnimationFrame(f)})(t0)})();
+(function(){const t0=performance.now(),d=(RM||location.search.indexOf("still")>=0)?1:1300;(function f(t){const k=Math.min(1,(t-t0)/d),e=1-Math.pow(1-k,3);ST.forEach(s=>s.numEl.textContent=fmt(Math.round(s.num*e)));if(k<1)requestAnimationFrame(f)})(t0)})();
 
 /* ---------- packets ---------- */
 const colorOf={refused:'#f87171',none:'#56627d',trial:'#f5a524',adopt:'#34d399'};
@@ -326,7 +326,7 @@ setInterval(()=>{if(paused)return;const o=cursors[Math.floor(Math.random()*curso
 
 /* ---------- controls ---------- */
 const ctrl=$('ctrl');
-ctrl.innerHTML=`<span class="chip"><i></i>Runs 5 times a day: 07:40 · 11:40 · 13:40 · 17:40 · 20:40</span><span class="chip">Last collection: ${S.tech+S.stocks} new reels</span><span class="chip mono">Data as of ${esc(D.built)}</span>`;
+ctrl.innerHTML=`<span class="chip"><i></i>Checks Instagram every hour</span><span class="chip">Last collection: ${S.tech+S.stocks} new reels</span><span class="chip mono">Data as of ${esc(D.built)}</span>`;
 const bp=document.createElement('button');bp.className='btn';bp.type='button';bp.textContent=paused?'Play':'Pause';bp.onclick=()=>{paused=!paused;bp.textContent=paused?'Play':'Pause'};
 const bs=document.createElement('button');bs.className='btn';bs.type='button';bs.textContent='Speed 1×';bs.onclick=()=>{speed=speed===1?2:speed===2?.5:1;bs.textContent='Speed '+speed+'×'};
 ctrl.append(bp,bs);
@@ -402,12 +402,12 @@ function follow(i){
 follow(0);
 
 /* ---------- timeline ---------- */
-const tl=$('tl');const ticks=[[7,40],[11,40],[13,40],[17,40],[20,40]];
+const tl=$('tl');const ticks=Array.from({length:24},(_,h)=>[h,40]);
 tl.innerHTML=`<div class="ruler">${[0,3,6,9,12,15,18,21,24].map(h=>`<span style="left:${h/24*100}%">${String(h%24).padStart(2,'0')}:00</span>`).join('')}</div>`;
 const cs=['var(--collect)','var(--digest)','var(--verify)','var(--approve)','var(--apply)'];
-ticks.forEach(([h,m])=>{const l=(h+m/60)/24*100;const c=document.createElement('div');c.className='clip';c.style.left=l+'%';c.style.width=(1.1/24*100)+'%';c.style.minWidth='46px';c.innerHTML=cs.map(x=>`<i style="background:${x}"></i>`).join('')+`<em>${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}</em>`;tl.appendChild(c)});
+ticks.forEach(([h,m])=>{const l=(h+m/60)/24*100;const c=document.createElement('div');c.className='clip';c.style.left=l+'%';c.style.width=(0.85/24*100)+'%';c.innerHTML=cs.map(x=>`<i style="background:${x}"></i>`).join('')+(h%6===0?`<em>${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}</em>`:'');tl.appendChild(c)});
 const now=new Date();const hd=document.createElement('div');hd.className='head';hd.style.left=((now.getHours()+now.getMinutes()/60)/24*100)+'%';tl.appendChild(hd);
-$('tlnote').textContent='Each block is one scheduled run of the whole process: collect, digest, verify, decide, apply. The red line is the time now on your device.';
+$('tlnote').textContent='Each block is one hourly run of the whole process: collect, digest, verify, decide, apply. The red line is the time now on your device.';
 
 /* ---------- what we kept ---------- */
 const K=D.picks;let kmode='look';

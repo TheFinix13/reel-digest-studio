@@ -1,8 +1,10 @@
 # Reel Digest Studio
 
-An automated loop that turns saved Instagram videos into checked, usable ideas, and a page that shows how every decision was made.
+### [▶ Open the live demo](https://thefinix13.github.io/reel-digest-studio/)
 
-**Live demo:** enable GitHub Pages for the `docs/` folder and open the page (settings → Pages → Branch `main`, folder `/docs`).
+[![Reel Digest Studio preview: six stages from collecting videos to learning from results](docs/preview.png)](https://thefinix13.github.io/reel-digest-studio/)
+
+An automated loop that turns saved Instagram videos into checked, usable ideas, and a page that shows how every decision was made.
 
 ## What it does
 

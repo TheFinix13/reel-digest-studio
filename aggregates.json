@@ -1,0 +1,99 @@
+{
+ "stats": {
+  "library": 2187,
+  "evidence": 2183,
+  "tech": 36,
+  "stocks": 7,
+  "research": 717,
+  "researched_true": 121,
+  "funnels": 351,
+  "falsified": 4,
+  "adopt": 80,
+  "trial": 167,
+  "second_agree": 10,
+  "second_disagree": 16,
+  "apps": {
+   "failed": 3,
+   "proposed": 24,
+   "rejected": 33,
+   "used": 18,
+   "worked": 11
+  },
+  "decisions": {
+   "approve": 29,
+   "change": 19,
+   "promote": 1,
+   "skip": 73
+  }
+ },
+ "rules": {
+  "F2": 7,
+  "F2+R2": 4,
+  "F4": 3,
+  "G1": 4,
+  "G2": 351,
+  "G3": 72,
+  "G3+R2": 3,
+  "G3b": 35,
+  "G4": 122,
+  "G5": 3,
+  "G6": 1,
+  "G7": 1582
+ },
+ "rel": {
+  "measured": "2026-11-11 01:21",
+  "hand_vs_gate": {
+   "n": 31,
+   "agree": 16,
+   "ci": [
+    0.348,
+    0.68
+   ],
+   "note": "hand-carded truth (true/false) against the gate's verdict; 'unverified' gate rows are counted as disagreement with a hand true/false"
+  },
+  "second_model": {
+   "n": 21,
+   "agree": 5,
+   "ci": [
+    0.106,
+    0.451
+   ],
+   "note": "non-Claude reviewer on adopts that target a project; disagreement sends the idea to trial"
+  },
+  "outcomes": {
+   "worked": 11,
+   "failed": 3,
+   "ci": [
+    0.524,
+    0.924
+   ],
+   "note": "tested applications only; notes written but untested are not counted"
+  },
+  "determinism": {
+   "same": true,
+   "runs": 2,
+   "hash": "9fe9d0ca93"
+  },
+  "links": {
+   "n": 90,
+   "alive": 80,
+   "blocked": 8,
+   "dead": 1,
+   "ci": [
+    0.923,
+    0.994
+   ],
+   "note": "sources opened by the research agents, fetched again now"
+  },
+  "audit": {
+   "n": 24,
+   "agree": 16,
+   "ci": [
+    0.467,
+    0.82
+   ],
+   "model": "gpt-5.3-codex-high",
+   "note": "blind: the auditor never saw our label. Agreement counts 'reliable' for verified, 'partly/unverifiable/reliable' for trial, 'funnel/false' for suspicious."
+  }
+ }
+}

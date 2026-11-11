@@ -1,0 +1,452 @@
+<meta charset="utf-8">
+<title>Reel Digest Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Concept: a night-time control room. One glowing flow map, agents as named cursors moving over it, a scene for each station, a story mode that walks one real reel through every step. Single dark look by design. */
+:root{
+  --bg:#060a12; --bg2:#0a101c; --panel:#0e1627; --panel2:#121c31; --line:#1e2a45; --ink:#e7edf8; --mute:#8593b0; --dim:#56627d;
+  --collect:#38bdf8; --digest:#a78bfa; --verify:#f5a524; --approve:#34d399; --apply:#f472b6; --learn:#2dd4bf; --bad:#f87171;
+  --display:'Space Grotesk',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:radial-gradient(1200px 500px at 50% -10%,#101b36 0,transparent 70%),var(--bg);color:var(--ink);font:14px/1.5 var(--body);padding-block:18px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.app{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
+h1{font-size:26px;letter-spacing:-.01em}
+h2{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--mute);font-weight:700}
+.mono{font-family:var(--mono);font-size:12px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px 24px}
+header p{margin:4px 0 0;color:var(--mute);max-width:64ch}
+.ctrl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:3px 10px;border-radius:99px;font-size:12px;border:1px solid var(--line);background:var(--panel);white-space:nowrap}
+.chip i{width:7px;height:7px;border-radius:50%;background:var(--approve);box-shadow:0 0 8px var(--approve);flex:none}
+button{font:inherit;color:inherit}
+.btn{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:13px}
+.btn:hover{border-color:var(--collect)}
+.btn:focus-visible,.tab:focus-visible,.rl:focus-visible,g[role=button]:focus-visible{outline:2px solid var(--collect);outline-offset:2px}
+/* stage */
+.stage{position:relative;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,var(--bg2),var(--bg));overflow:hidden}
+.stage::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px;opacity:.55;pointer-events:none}
+.mapscroll{overflow-x:auto;position:relative}.mapwrap{position:relative;min-width:760px}
+.stage svg{display:block;width:100%;height:auto;position:relative}
+.cur{position:absolute;display:flex;align-items:flex-start;gap:3px;transform:translate(-4px,-4px);transition:left 1.5s cubic-bezier(.5,0,.2,1),top 1.5s cubic-bezier(.5,0,.2,1);pointer-events:none;z-index:3}
+.cur svg{width:14px;height:14px;position:static;filter:drop-shadow(0 0 4px currentColor)}
+.cur span{font:600 10.5px var(--body);padding:1px 7px;border-radius:5px;color:#05080f;white-space:nowrap;margin-top:9px}
+.node text.nm{font:700 12px var(--display);fill:var(--ink);letter-spacing:.06em;text-transform:uppercase}
+.node text.nu{font:700 22px var(--display);fill:var(--ink);font-variant-numeric:tabular-nums}
+.node text.sb{font:11px var(--body);fill:var(--mute)}
+.node{cursor:pointer}
+.node .ring{transition:stroke-width .2s,opacity .2s}
+.node:hover .ring,.node.on .ring{stroke-width:3.5}
+.node.flash .core{animation:flash .6s}
+@keyframes flash{0%{filter:brightness(2.2)}100%{filter:none}}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px;border-top:1px solid var(--line);position:relative;background:rgba(10,16,28,.7)}
+.tab{border:1px solid var(--line);background:transparent;border-radius:8px;padding:4px 11px;cursor:pointer;font-size:13px;display:inline-flex;gap:7px;align-items:center}
+.tab i{width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}
+.tab[aria-selected=true]{background:var(--panel2);border-color:var(--c)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-left:auto;align-items:center}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+/* panels */
+.row{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:16px}
+@media(max-width:900px){.row{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.scene{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:center}
+@media(max-width:640px){.scene{grid-template-columns:minmax(0,1fr)}}
+.sc-art{aspect-ratio:4/3;border-radius:12px;background:var(--bg);border:1px solid var(--line);position:relative;overflow:hidden;display:grid;place-items:center}
+.sc-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sc-h h3{font-size:20px}
+.badge{font:700 11px var(--mono);padding:2px 8px;border-radius:6px;color:#05080f;background:var(--c)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stat{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.stat b{display:block;font:700 22px var(--display);font-variant-numeric:tabular-nums}
+.stat small{color:var(--mute);font-size:11.5px}
+.who{display:flex;gap:6px;flex-wrap:wrap}
+.who span{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line);display:inline-flex;gap:6px;align-items:center}
+.who span i{width:7px;height:7px;border-radius:50%}
+.sent{color:var(--mute);margin:0}
+/* log */
+.log{display:flex;flex-direction:column;gap:2px;font-size:12.5px;min-height:300px;max-height:340px;overflow:hidden;mask-image:linear-gradient(180deg,#000 80%,transparent)}
+.ln{display:grid;grid-template-columns:54px 112px minmax(0,1fr);gap:8px;padding:5px 0;border-bottom:1px solid var(--line);animation:in .4s}
+.ln .t{font:11px var(--mono);color:var(--dim)} .ln .a{font-weight:600;display:flex;gap:6px;align-items:center;min-width:0} .ln .a i{width:7px;height:7px;border-radius:50%;flex:none}
+.ln .x{color:var(--mute);overflow-wrap:anywhere}
+@keyframes in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+/* follow */
+.follow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:16px}
+@media(max-width:900px){.follow{grid-template-columns:minmax(0,1fr)}}
+.reels{display:flex;flex-direction:column;gap:6px}
+.rl{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 10px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.rl:hover,.rl[aria-pressed=true]{border-color:var(--collect)}
+.rl .c{color:var(--mute);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill{font:700 10.5px var(--body);padding:1px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;color:#05080f;background:var(--c,var(--mute))}
+.steps{display:flex;flex-direction:column;gap:10px}
+.stp{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;opacity:.28;transition:opacity .4s}
+.stp.on{opacity:1}
+.stp .n{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 12px var(--mono);color:#05080f;background:var(--c)}
+.stp .b{min-width:0}
+.stp .h{font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.stp .p{color:var(--mute);font-size:13px;overflow-wrap:anywhere}
+.stp .q{font:12px var(--mono);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 9px;margin-top:4px;overflow-wrap:anywhere}
+.stp a{color:var(--collect)}
+.lights{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.lt{font-size:12px;border:1px solid var(--line);border-radius:8px;padding:2px 9px;display:inline-flex;gap:6px;align-items:center;transition:all .3s}
+.lt i{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.lt.y{border-color:var(--approve)} .lt.y i{background:var(--approve);box-shadow:0 0 8px var(--approve)}
+.lt.r{border-color:var(--bad)} .lt.r i{background:var(--bad);box-shadow:0 0 8px var(--bad)}
+.verdict{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:var(--panel2);border:1px solid var(--line)}
+.stamp{font:700 18px var(--display);letter-spacing:.08em;padding:2px 12px;border:2px solid var(--c);color:var(--c);border-radius:6px;transform:rotate(-3deg);animation:pop .5s}
+@keyframes pop{from{transform:scale(1.6) rotate(-8deg);opacity:0}to{transform:rotate(-3deg);opacity:1}}
+/* timeline */
+.tl{position:relative;height:74px;border:1px solid var(--line);border-radius:10px;background:var(--bg);overflow:hidden}
+.tl .ruler{position:absolute;inset:0 0 auto 0;height:18px;border-bottom:1px solid var(--line);font:10px var(--mono);color:var(--dim)}
+.tl .ruler span{position:absolute;top:2px;transform:translateX(-50%)}
+.clip{position:absolute;top:26px;height:38px;border-radius:6px;overflow:hidden;display:flex;border:1px solid #0000}
+.clip i{flex:1;display:block}
+.clip em{position:absolute;left:4px;top:1px;font:600 10px var(--mono);font-style:normal;color:#05080f;mix-blend-mode:normal}
+.head{position:absolute;top:0;bottom:0;width:2px;background:var(--bad);box-shadow:0 0 8px var(--bad)}
+.head::before{content:"";position:absolute;top:0;left:-4px;border:5px solid transparent;border-top-color:var(--bad)}
+@media(prefers-reduced-motion:reduce){.cur{transition:none}.ln,.stamp{animation:none}}
+/* scene art */
+.fall{position:absolute;left:0;right:0;top:0;bottom:0}
+.fall i{position:absolute;top:-10%;width:34px;height:20px;border-radius:5px;background:var(--collect);opacity:.9;animation:fall 3.2s linear infinite;font:700 8px/20px var(--mono);color:#05080f;text-align:center;font-style:normal}
+@keyframes fall{0%{transform:translateY(0)}70%{transform:translateY(190px) scale(1)}100%{transform:translateY(215px) scale(.2);opacity:0}}
+.wave{display:flex;gap:3px;align-items:center;height:60px}
+.wave i{width:5px;background:var(--digest);border-radius:3px;animation:wv 1.1s ease-in-out infinite}
+@keyframes wv{0%,100%{height:8px}50%{height:54px}}
+.radar{width:84%;aspect-ratio:1;border-radius:50%;border:1px solid var(--verify);position:relative;background:repeating-radial-gradient(circle,transparent 0 24px,#f5a52422 25px 26px)}
+.radar::after{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#f5a52488,transparent 28%);animation:spin 3s linear infinite}
+.radar b{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--verify);box-shadow:0 0 10px var(--verify);animation:ping 3s infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ping{0%,60%{opacity:.15}70%{opacity:1}100%{opacity:.15}}
+.bays{display:flex;flex-direction:column;gap:8px;width:86%}
+.bay{display:grid;grid-template-columns:78px 1fr 18px;gap:8px;align-items:center;font-size:11px;color:var(--mute)}
+.bay u{display:block;height:7px;border-radius:4px;background:var(--line);overflow:hidden}
+.bay u s{display:block;height:100%;background:var(--apply);width:0;animation:fill 3.6s ease-out infinite}
+@keyframes fill{0%{width:0}70%,100%{width:var(--w)}}
+.sw{animation:swp 4s infinite}
+@keyframes swp{0%,100%{opacity:.25}20%,80%{opacity:1}}
+
+.ktabs{display:flex;gap:6px}
+.ktabs .tab[aria-selected=true]{background:var(--panel2);border-color:var(--collect)}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.kc{background:var(--bg);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.kc img{width:100%;display:block;border-bottom:1px solid var(--line);background:#000}
+.kc .kb{padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.kc .kh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--mute)}
+.kc .tk{font-weight:600}
+.kc .us{color:var(--mute);font-size:13px}
+.kc .us b{color:var(--approve);font-weight:600}
+.kc .nt{font-size:12px;color:var(--mute);border-top:1px dashed var(--line);padding-top:6px}
+.quote{font:500 17px/1.35 var(--display);padding:12px 14px 0;color:var(--ink)}
+.quote::before{content:"\201C";color:var(--verify)}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.rt{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.rt .rn{font:700 26px var(--display);font-variant-numeric:tabular-nums}
+.rt .rl2{font-size:12.5px;color:var(--mute)}
+.ci{position:relative;height:8px;border-radius:4px;background:var(--line);margin:4px 0}
+.ci i{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--c,var(--collect));opacity:.55}
+.ci b{position:absolute;top:-3px;width:3px;height:14px;border-radius:2px;background:var(--ink)}
+.ci-s{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--dim)}
+.rfind{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--panel2);display:flex;flex-direction:column;gap:6px}
+.rfind h3{font-size:15px}
+.rfind ul{margin:0;padding-left:18px;color:var(--mute);font-size:13px;display:flex;flex-direction:column;gap:3px}
+.ra{width:100%}
+.start .sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.start h3{font-size:15px;margin-bottom:4px}
+.gl{border-top:1px dashed var(--line);padding-top:10px}
+.gl summary{cursor:pointer;font-weight:600;color:var(--collect)}
+.gl dl{display:grid;grid-template-columns:minmax(120px,max-content) minmax(0,1fr);gap:6px 14px;margin:10px 0 0}
+.gl dt{font-weight:600}.gl dd{margin:0;color:var(--mute)}
+@media(max-width:640px){.gl dl{grid-template-columns:minmax(0,1fr)}.gl dd{margin-bottom:6px}}
+.sum{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px}
+.tn{margin-top:4px;font-size:12px;color:var(--mute)}.tn summary{cursor:pointer;color:var(--collect)}
+.lb{display:block;font:700 10.5px var(--body);text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:1px}
+.wl{color:var(--collect);font-weight:600;text-decoration:none;font-size:12px}.wl:hover{text-decoration:underline}
+</style>
+
+<div class="app">
+<header>
+  <div>
+    <h1>Reel Digest Studio</h1>
+    <p>Save Instagram videos you like. This system reads them, fact-checks them and turns the good ideas into real improvements, while rejecting the hype..</p>
+  </div>
+  <div class="ctrl" id="ctrl"></div>
+</header>
+
+<section class="panel start" aria-label="Start here">
+  <div class="demo" style="background:var(--warn-soft,#37290f);border:1px solid var(--verify);border-radius:10px;padding:8px 12px;font-size:13px">Demo version. The totals and reliability rates are real figures from the private system. Every video, creator, quote and picture shown here is invented, so nobody’s content appears.</div>
+  <h2>Start here</h2>
+  <div class="sgrid">
+    <div><h3>What is this?</h3><p class="sent">Reels are short videos on Instagram. The owner saves the useful-looking ones into folders. Two folders feed this system: <b>Tech</b> (named “Tech bro” on Instagram: videos about coding, AI tools and design) and <b>Stocks</b> (videos about investing, trading and money).</p></div>
+    <div><h3>What does it do?</h3><p class="sent">It collects new videos, writes out what is said and shown, checks the claims against trustworthy sources, decides what is worth using, and puts good ideas to work in real projects. No person has to approve each one.</p></div>
+    <div><h3>How to read the page</h3><p class="sent">The map shows the six stages. Click a stage to see what happens there. Further down you can follow one video from start to finish, see what we kept and why, and check how far the system can be trusted.</p></div>
+  </div>
+  <details class="gl"><summary>Words used on this page</summary>
+    <dl>
+      <dt>Reel</dt><dd>A short video on Instagram.</dd>
+      <dt>Claim</dt><dd>A statement in a video that could be true or false, such as “this tool is free” or “this bot made $55,000”.</dd>
+      <dt>Source</dt><dd>A trustworthy web page, such as an official site or a public code project, that confirms or contradicts a claim.</dd>
+      <dt>Sales funnel</dt><dd>A post built to make you comment or message so that someone can sell to you. These are treated as untrustworthy.</dd>
+      <dt>Use now / Test first</dt><dd>“Use now” means the idea is confirmed and can be used. “Test first” means it looks real but should be tried safely on a small scale before relying on it.</dd>
+      <dt>Second AI</dt><dd>An AI from a different company that double-checks decisions. Two similar AIs tend to agree with each other, so a different one is used on purpose.</dd>
+      <dt>Agent</dt><dd>A program or AI that does one job. The agents here are listed under each stage.</dd>
+      <dt>Claude, Cursor, Raphael</dt><dd>Claude is an AI assistant that reads the folders. Cursor is an AI coding assistant that applies changes. Raphael is the owner’s personal AI assistant.</dd>
+      <dt>Confidence band</dt><dd>On the reliability bars, the coloured band shows where the true result very likely sits (95% sure). A wide band means there were too few examples to be confident.</dd>
+    </dl>
+  </details>
+</section>
+
+
+<section class="stage" aria-label="Process map: six stages from collecting videos to learning from results">
+  <div class="mapscroll"><div class="mapwrap">
+  <svg id="map" viewBox="0 0 1100 410" role="img" aria-label="Six stations: collect, digest, verify, approve, apply, learn, with reels moving between them"></svg>
+  <div id="cursors"></div></div></div>
+  <div class="tabs" id="tabs" role="tablist"></div>
+</section>
+
+<div class="row">
+  <section class="panel" aria-label="Station" id="scenePanel"></section>
+  <section class="panel" aria-label="Activity"><h2>What the system just did</h2><div class="log" id="log" aria-live="off"></div></section>
+</div>
+
+<section class="panel" aria-label="Follow one reel">
+  <h2>Follow one video, step by step</h2>
+  <div class="follow">
+    <div class="reels" id="reels"></div>
+    <div id="story"></div>
+  </div>
+</section>
+
+<section class="panel" aria-label="What we kept">
+  <h2>What we kept from the saved videos</h2>
+  <p class="sent">A video can be worth keeping for how it looks, for what it says, for both, or for neither. Each card shows the exact thing we took and where it ended up.</p>
+  <div class="ktabs" role="tablist"><button class="tab" id="kt-look" role="tab" type="button">How it looks <span class="mono" id="kn-look"></span></button><button class="tab" id="kt-say" role="tab" type="button">What it says <span class="mono" id="kn-say"></span></button></div>
+  <div class="kgrid" id="kgrid"></div>
+</section>
+
+<section class="panel" aria-label="Reliability">
+  <h2>Can it be trusted? We measured it</h2>
+  <div class="rgrid" id="rgrid"></div>
+  <div id="rfind"></div>
+</section>
+
+<section class="panel" aria-label="Schedule">
+  <h2>When it runs</h2>
+  <div class="tl" id="tl"></div>
+  <p class="sent" id="tlnote"></p>
+</section>
+</div>
+
+<script>
+const D=/*DATA*/null, S=D.stats, A=S.apps||{};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const fmt=n=>Number(n).toLocaleString('en-GB');
+const RM=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const NS='http://www.w3.org/2000/svg';
+const mk=(t,at,p)=>{const e=document.createElementNS(NS,t);for(const k in at)e.setAttribute(k,at[k]);if(p)p.appendChild(e);return e};
+
+const ST=[
+ {id:'collect',nm:'Collect',c:'var(--collect)',x:95,num:S.tech+S.stocks,sb:'new reels found',why:'Software opens the owner’s two Instagram folders (read only: no likes, follows or comments) and picks up any reels saved since the last run.',stats:[[S.tech,'new in Tech folder'],[S.stocks,'new in Stocks folder'],[fmt(S.library),'reels in total']],who:['Claude','Scheduler']},
+ {id:'digest',nm:'Digest',c:'var(--digest)',x:275,num:S.evidence,sb:'videos turned into text',why:'Each video is turned into text: the spoken words plus any words shown on screen. This runs on the owner’s own computer, so nothing is sent away.',stats:[[fmt(S.evidence),'videos turned into text'],[fmt(S.library-S.evidence),'still waiting'],['2','programs working at once']],who:['Transcribers']},
+ {id:'verify',nm:'Verify',c:'var(--verify)',x:455,num:S.research,sb:'claims fact-checked',why:'Fact-checkers look for a trustworthy page that confirms or contradicts what the video says. With no source, a claim is never marked true or false. Sales pitches are flagged here.',stats:[[S.researched_true,'claims confirmed'],[fmt(S.funnels),'flagged as sales funnels'],[S.falsified,'shown to be false']],who:['Fact-checkers']},
+ {id:'approve',nm:'Decide',c:'var(--approve)',x:635,num:S.adopt+S.trial,sb:'ideas cleared to use or test',why:'Written rules decide what happens to each idea: use it now, test it first, keep it for reference, or reject it. A second AI from a different company double-checks anything about to be used. No person has to approve each one.',stats:[[S.adopt,'ready to use'],[S.trial,'to test first'],[S.second_disagree,'sent back to testing by the second AI']],who:['Rulebook','Second AI']},
+ {id:'apply',nm:'Apply',c:'var(--apply)',x:815,num:(A.used||0)+(A.worked||0)+(A.failed||0),sb:'ideas put to work',why:'Ideas that passed are put to work as a checklist, a note, a code change or a habit in the owner’s projects. When nothing can be done, the reason is written down.',stats:[[A.proposed||0,'waiting to be applied'],[A.used||0,'in use'],[A.rejected||0,'turned down, with a reason']],who:['Cursor','Raphael']},
+ {id:'learn',nm:'Learn',c:'var(--learn)',x:995,num:(A.worked||0),sb:`worked when tried (${A.failed||0} failed)`,why:'After an idea is tried, the result is recorded. Ideas that worked are trusted more. Ideas that failed are never suggested again, and sources that keep failing are dropped.',stats:[[A.worked||0,'worked'],[A.failed||0,'failed'],['4','learning rules']],who:['Rulebook']}];
+const Y=150;
+const AG={'Claude':{c:'#38bdf8',st:['collect','verify','approve'],role:'AI assistant that reads the folders'},'Scheduler':{c:'#94a3b8',st:['collect','digest','approve'],role:'timer that starts a run five times a day'},'Transcribers':{c:'#a78bfa',st:['digest'],role:'two programs that turn video into text'},
+ 'Fact-checkers':{c:'#f5a524',st:['verify'],role:'AI helpers that search the web for sources'},'Rulebook':{c:'#34d399',st:['approve','learn'],role:'written rules that decide what happens to each idea'},'Second AI':{c:'#fb923c',st:['approve'],role:'an AI from a different company that double-checks'},
+ 'Cursor':{c:'#f472b6',st:['apply'],role:'AI coding assistant that applies the changes'},'Raphael':{c:'#2dd4bf',st:['apply'],role:'the owner’s personal AI assistant, which looks reels up before each task'}};
+
+/* ---------- map ---------- */
+const map=$('map');
+const defs=mk('defs',{},map);
+const gl=mk('filter',{id:'glow',x:'-50%',y:'-50%',width:'200%',height:'200%'},defs);mk('feGaussianBlur',{stdDeviation:'5',result:'b'},gl);const mg=mk('feMerge',{},gl);mk('feMergeNode',{in:'b'},mg);mk('feMergeNode',{in:'SourceGraphic'},mg);
+const segs=[];
+for(let i=0;i<ST.length-1;i++){
+  const p=mk('path',{d:`M${ST[i].x} ${Y} L${ST[i+1].x} ${Y}`,stroke:'var(--line)','stroke-width':3,fill:'none','stroke-dasharray':'2 7','stroke-linecap':'round'},map);segs.push(p)}
+const vx=ST[2].x, ax=ST[3].x;
+const toBin=mk('path',{d:`M${vx} ${Y} L${vx} 330`,stroke:'var(--line)','stroke-width':3,fill:'none','stroke-dasharray':'2 7'},map);
+const toShelf=mk('path',{d:`M${ax} ${Y} L${ax} 330`,stroke:'var(--line)','stroke-width':3,fill:'none','stroke-dasharray':'2 7'},map);
+const bins=[[vx,'Rejected',S.funnels+S.falsified,'var(--bad)','sales funnels, false claims'],[ax,'Kept for reference',D.stats.library-S.adopt-S.trial-S.funnels-S.falsified,'var(--dim)','nothing to test']];
+bins.forEach(([x,t,n,c,s])=>{
+  mk('rect',{x:x-78,y:330,width:156,height:56,rx:12,fill:'var(--panel)',stroke:c,'stroke-width':1.5},map);
+  const a=mk('text',{x:x,y:352,'text-anchor':'middle',fill:'var(--ink)','font-family':'Space Grotesk','font-weight':700,'font-size':12},map);a.textContent=t.toUpperCase();
+  const b=mk('text',{x:x,y:372,'text-anchor':'middle',fill:'var(--mute)','font-size':11,'font-family':'Inter'},map);b.textContent=fmt(n)+' · '+s;});
+const nodes={};
+ST.forEach((s,i)=>{
+  const g=mk('g',{class:'node',tabindex:0,role:'button','aria-label':s.nm+' station'},map);
+  const col=getComputedStyle(document.documentElement).getPropertyValue('--'+s.id).trim();s.col=col;
+  mk('circle',{cx:s.x,cy:Y,r:58,fill:col,opacity:.06,class:'halo'},g);
+  mk('circle',{cx:s.x,cy:Y,r:46,fill:'var(--panel)',stroke:col,'stroke-width':2,class:'ring',filter:'url(#glow)'},g);
+  mk('circle',{cx:s.x,cy:Y,r:38,fill:'var(--bg)',class:'core'},g);
+  const n=mk('text',{x:s.x,y:Y+8,'text-anchor':'middle',class:'nu'},g);n.textContent='0';s.numEl=n;
+  const t=mk('text',{x:s.x,y:Y-64,'text-anchor':'middle',class:'nm'},g);t.textContent=(i+1)+'  '+s.nm;
+  const sb=mk('text',{x:s.x,y:Y+78,'text-anchor':'middle',class:'sb'},g);sb.textContent=s.sb;
+  g.onclick=()=>pick(s.id);g.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(s.id)}};
+  nodes[s.id]=g;});
+const packG=mk('g',{},map);
+
+/* counters count up on load */
+(function(){const t0=performance.now(),d=RM?1:1300;(function f(t){const k=Math.min(1,(t-t0)/d),e=1-Math.pow(1-k,3);ST.forEach(s=>s.numEl.textContent=fmt(Math.round(s.num*e)));if(k<1)requestAnimationFrame(f)})(t0)})();
+
+/* ---------- packets ---------- */
+const colorOf={refused:'#f87171',none:'#56627d',trial:'#f5a524',adopt:'#34d399'};
+const route=o=>{const m={refused:[0,1,'bin'],none:[0,1,2,'shelf'],trial:[0,1,2,3,4],adopt:[0,1,2,3,4]}[o];return m};
+let paused=RM,speed=1,packets=[],last=performance.now(),spawnT=0,pi=0;
+const pool=D.pool.slice().sort(()=>Math.random()-.5);
+function spawn(){
+  const [id,o]=pool[pi++%pool.length];const r=route(o);const list=[];
+  r.forEach(k=>{if(k==='bin')list.push(toBin);else if(k==='shelf')list.push(toShelf);else list.push(segs[k])});
+  const g=mk('g',{},packG);mk('rect',{x:-26,y:-9,width:52,height:18,rx:6,fill:colorOf[o]},g);
+  const tx=mk('text',{x:0,y:3.5,'text-anchor':'middle','font-family':'JetBrains Mono','font-size':8.5,'font-weight':700,fill:'#05080f'},g);tx.textContent=id.slice(0,7);
+  packets.push({g,list,i:0,d:0,o,lens:list.map(p=>p.getTotalLength()),stops:r});
+}
+function frame(t){
+  const dt=Math.min(.05,(t-last)/1000)*speed;last=t;
+  if(!paused){
+    spawnT+=dt;if(spawnT>.85){spawnT=0;if(packets.length<9)spawn()}
+    for(let k=packets.length-1;k>=0;k--){const p=packets[k];p.d+=dt*120;
+      if(p.d>=p.lens[p.i]){const stop=p.stops[p.i];const nid=stop==='bin'?null:stop==='shelf'?null:ST[stop+1].id;if(nid){const n=nodes[nid];n.classList.add('flash');setTimeout(()=>n.classList.remove('flash'),600)}
+        p.i++;p.d=0;if(p.i>=p.list.length){p.g.remove();packets.splice(k,1);continue}}
+      const pt=p.list[p.i].getPointAtLength(p.d);p.g.setAttribute('transform',`translate(${pt.x},${pt.y})`)}
+  }
+  requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+
+/* ---------- cursors ---------- */
+const cur=$('cursors');
+const pos=(sid,k)=>{const s=ST.find(x=>x.id===sid);return{l:(s.x+22+k*8)/1100*100,t:(Y+40+k*20)/410*100}};
+const cursors=Object.entries(AG).map(([n,a],k)=>{
+  const d=document.createElement('div');d.className='cur';d.style.color=a.c;
+  d.innerHTML=`<svg viewBox="0 0 14 14"><path d="M1 1 L12 6 L7 7.5 L5.5 12.5 Z" fill="currentColor"/></svg><span style="background:${a.c}">${esc(n)}</span>`;
+  cur.appendChild(d);const o={d,a,n,k,at:0};place(o,a.st[0]);return o});
+function place(o,sid){const p=pos(sid,o.k%3);o.d.style.left=p.l+'%';o.d.style.top=p.t+'%'}
+setInterval(()=>{if(paused)return;const o=cursors[Math.floor(Math.random()*cursors.length)];o.at=(o.at+1)%o.a.st.length;place(o,o.a.st[o.at])},1100/1);
+
+/* ---------- controls ---------- */
+const ctrl=$('ctrl');
+ctrl.innerHTML=`<span class="chip"><i></i>Runs 5 times a day: 07:40 · 11:40 · 13:40 · 17:40 · 20:40</span><span class="chip">Last collection: ${S.tech+S.stocks} new reels</span><span class="chip mono">Data as of ${esc(D.built)}</span>`;
+const bp=document.createElement('button');bp.className='btn';bp.type='button';bp.textContent=paused?'Play':'Pause';bp.onclick=()=>{paused=!paused;bp.textContent=paused?'Play':'Pause'};
+const bs=document.createElement('button');bs.className='btn';bs.type='button';bs.textContent='Speed 1×';bs.onclick=()=>{speed=speed===1?2:speed===2?.5:1;bs.textContent='Speed '+speed+'×'};
+ctrl.append(bp,bs);
+
+/* ---------- tabs + scene ---------- */
+const tabs=$('tabs');
+ST.forEach(s=>{const b=document.createElement('button');b.className='tab';b.type='button';b.setAttribute('role','tab');b.style.setProperty('--c',s.col);b.id='tab-'+s.id;b.innerHTML=`<i></i>${s.nm}`;b.onclick=()=>pick(s.id);tabs.appendChild(b)});
+const lg=document.createElement('div');lg.className='legend';lg.innerHTML=`<span><b style="background:#34d399"></b>use now</span><span><b style="background:#f5a524"></b>test first</span><span><b style="background:#56627d"></b>keep for reference</span><span><b style="background:#f87171"></b>rejected</span><span>The moving cards are a sample of real saved videos. The motion shows how work flows; it is not a live feed.</span>`;
+let curSt=null,twT=null;
+const art={
+ collect:()=>`<div class="fall">${[8,28,50,68,18,58].map((l,i)=>`<i style="left:${l}%;animation-delay:${-i*.55}s">${(D.pool[i]||['reel'])[0].slice(0,4)}</i>`).join('')}</div><svg viewBox="0 0 200 150" width="100%" style="position:absolute;inset:0"><path d="M30 105 L170 105 L120 135 L80 135 Z" fill="none" stroke="var(--collect)" stroke-width="2"/><text x="100" y="125" text-anchor="middle" font-size="9" fill="var(--collect)" font-family="JetBrains Mono">${S.tech+S.stocks} new</text></svg>`,
+ digest:()=>`<div style="width:80%"><div class="wave">${Array.from({length:26},(_,i)=>`<i style="animation-delay:${-(i*.09)%1.1}s"></i>`).join('')}</div><div class="mono" id="tw" style="margin-top:10px;color:var(--ink);min-height:70px;overflow-wrap:anywhere"></div></div>`,
+ verify:()=>`<div class="radar"><b style="left:22%;top:30%"></b><b style="left:68%;top:24%;animation-delay:.7s"></b><b style="left:55%;top:68%;animation-delay:1.4s"></b><b style="left:28%;top:62%;animation-delay:2.1s"></b></div>`,
+ approve:()=>`<div style="display:flex;flex-direction:column;gap:12px;align-items:center"><div class="lights" id="gl">${['Evidence read','Has a source','Not a sales funnel','Second AI agrees'].map(x=>`<span class="lt"><i></i>${x}</span>`).join('')}</div><div id="gs" style="height:44px"></div></div>`,
+ apply:()=>`<div class="bays">${[['Raphael',92],['Design',60],['Career',34],['Hosting',20],['Trading',0]].map(([n,w],i)=>`<div class="bay"><span>${n}</span><u><s style="--w:${w}%;animation-delay:${i*.35}s"></s></u><span>${n==='Trading'?'⏸':''}</span></div>`).join('')}</div>`,
+ learn:()=>{const w=A.worked||0,f=A.failed||0,r=w/Math.max(1,w+f),L=251;return `<svg viewBox="0 0 200 150" width="86%"><path d="M30 120 A70 70 0 0 1 170 120" fill="none" stroke="var(--line)" stroke-width="12" stroke-linecap="round"/><path d="M30 120 A70 70 0 0 1 170 120" fill="none" stroke="var(--learn)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${L*r} ${L}"/><text x="100" y="108" text-anchor="middle" font-size="30" font-weight="700" fill="var(--ink)" font-family="Space Grotesk">${Math.round(r*100)}%</text><text x="100" y="130" text-anchor="middle" font-size="10" fill="var(--mute)" font-family="Inter">${w} worked · ${f} failed</text></svg>`}};
+function pick(id){
+  curSt=id;const s=ST.find(x=>x.id===id);
+  [...tabs.querySelectorAll('.tab')].forEach(b=>b.setAttribute('aria-selected',String(b.id==='tab-'+id)));
+  Object.entries(nodes).forEach(([k,g])=>g.classList.toggle('on',k===id));
+  $('scenePanel').innerHTML=`<div class="scene"><div class="sc-art">${art[id]()}</div><div style="display:flex;flex-direction:column;gap:10px"><div class="sc-h"><span class="badge" style="--c:${s.col}">${ST.indexOf(s)+1}</span><h3>${s.nm}</h3></div><p class="sent">${esc(s.why)}</p><div class="stats">${s.stats.map(x=>`<div class="stat"><b>${esc(x[0])}</b><small>${esc(x[1])}</small></div>`).join('')}</div><div class="who">${s.who.map(n=>{const a=AG[n];return `<span title="${esc(a.role)}"><i style="background:${a.c}"></i><b>${esc(n)}</b>&nbsp;${esc(a.role)}</span>`}).join('')}</div></div></div>`;
+  if(id==='digest'){clearInterval(twT);const txt=(D.traces[1]||D.traces[0]).speech||'';let k=0;const el=$('tw');twT=setInterval(()=>{if(!$('tw')){clearInterval(twT);return}k=(k+1)%(txt.length+25);el.textContent=txt.slice(0,k)},45)}
+  if(id==='approve'){const L=[...document.querySelectorAll('#gl .lt')];const stamps=[['VERIFIED','var(--approve)'],['TRIAL','var(--verify)'],['REFUSED','var(--bad)']];let n=0;const run=()=>{if(!$('gl'))return;L.forEach(l=>l.className='lt');const bad=n%3===2;L.forEach((l,i)=>setTimeout(()=>{if(!$('gl'))return;l.classList.add(bad&&i===2?'r':'y')},300+i*450));setTimeout(()=>{const x=stamps[n%3];if($('gs'))$('gs').innerHTML=`<span class="stamp" style="--c:${x[1]}">${x[0]}</span>`;n++},2300);setTimeout(()=>{if($('gl'))run()},4400)};run()}
+}
+pick('collect');
+
+/* ---------- activity log ---------- */
+const RT={G1:'shown false by a source',G2:'sales funnel or risky request',G3:'confirmed real',G3b:'real tool, but the post is a sales funnel: test only',G4:'partly true',G5:'unproven idea that fits a project',G6:'checked by hand earlier',G7:'nothing to test',F2:'worked when tried',F4:'failed when tried',R2:'second AI asked for a test first'};
+const VL={true:'confirmed','exists-confirmed':'the tool exists','partly-true':'partly true',partly:'partly true',false:'false',unverifiable:'could not be checked','saved-idea':'kept as an idea'};
+const MODE={adopt:'use now',trial:'test first',none:'not used'};
+const STAT={used:'put to use',worked:'tried and it worked',failed:'tried and it failed',proposed:'waiting to be applied',rejected:'turned down'};
+const ev=[['Scheduler','collect','Started a run: checking the Tech and Stocks folders'],['Claude','collect',`Found ${S.tech+S.stocks} new reels (${S.tech} in Tech, ${S.stocks} in Stocks)`],['Transcribers','digest',`${fmt(S.evidence)} videos now have their words written out`]];
+D.traces.forEach(t=>{
+  if(t.verdict)ev.push(['Fact-checkers','verify',`Checked ${t.id}: ${VL[t.verdict]||t.verdict}${t.sources.length?'':' (no source found)'}`]);
+  const g=t.gate||{};if(g.rule)ev.push(['Rulebook','approve',`${t.id}: ${String(g.rule).split('+').map(k=>RT[k]||k).join(', and ')}. Result: ${MODE[g.mode]}`]);
+  if(t.second&&t.second.agree!=null)ev.push(['Second AI','approve',`${t.id}: ${t.second.agree?'agrees it can be used':'wants it tested first'}`]);
+  if(t.app&&t.app.status)ev.push(['Cursor','apply',`${t.id}: ${STAT[t.app.status]||t.app.status}`]);});
+D.ledger.forEach(r=>ev.push(['Cursor','apply',`${r.reel}: ${STAT[r.status]||r.status}`]));
+let ei=0;const log=$('log');
+function pushLog(){const [a,st,x]=ev[ei++%ev.length];const c=AG[a].c;const d=new Date();
+  const l=document.createElement('div');l.className='ln';l.innerHTML=`<span class="t">${d.toTimeString().slice(0,8)}</span><span class="a"><i style="background:${c}"></i>${esc(a)}</span><span class="x">${esc(x)}</span>`;
+  log.prepend(l);while(log.children.length>10)log.lastChild.remove();
+  const o=cursors.find(o=>o.n===a);if(o)place(o,st);const nd=nodes[st];if(nd){nd.classList.add('flash');setTimeout(()=>nd.classList.remove('flash'),600)}}
+for(let i=0;i<5;i++)pushLog();setInterval(()=>{if(!paused)pushLog()},2200);
+
+/* ---------- follow one reel ---------- */
+const rls=$('reels'),story=$('story');let runT=null;
+const FOLD={'Tech bro':'Tech','Stocks':'Stocks'};
+const TRUTH={verified:['Confirmed real','var(--approve)'],partly:['Partly true','var(--verify)'],false:['False','var(--bad)'],suspicious:['Sales funnel','var(--bad)'],unverified:['Not checked','var(--dim)']};
+D.traces.forEach((t,i)=>{const g=t.gate||{};const m=TRUTH[g.truth]||['No decision','var(--dim)'];
+  const b=document.createElement('button');b.className='rl';b.type='button';b.setAttribute('aria-pressed','false');
+  b.innerHTML=`<span style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="mono">${esc(t.id)}</span><span class="pill" style="--c:${m[1]}">${m[0]}</span></span><span class="c">${esc(t.plain||t.caption)}</span>`;
+  b.onclick=()=>follow(i);rls.appendChild(b)});
+function follow(i){
+  clearInterval(runT);[...rls.children].forEach((b,j)=>b.setAttribute('aria-pressed',String(i===j)));
+  const t=D.traces[i],g=t.gate||{},sec=t.second||{},ap=t.app||{};
+  const srcOk=(t.sources||[]).length>0,fun=(t.flags||[]).length>0,hasSec=sec.agree!=null;
+  const srcs=(t.sources||[]).map(u=>`<div><a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.replace(/^https?:\/\//,'').slice(0,60))}</a></div>`).join('');
+  const rk=String(g.rule||'').split('+').map(k=>RT[k]?esc(RT[k]):'').filter(Boolean).join(', and ');
+  const modeTxt={adopt:'Use now',trial:'Test first, then decide',none:'Not used'}[g.mode]||'No decision yet';
+  const tm=TRUTH[g.truth]||['No decision','var(--dim)'];
+  const steps=[
+   ['collect',`Saved in the ${esc(FOLD[t.folder]||t.folder)} folder`,`By @${esc(t.creator)}. Caption: ${esc(t.caption)}`,(D.demo?"":`<div class="p"><a class="wl" href="https://www.instagram.com/reel/${esc(t.id)}/" target="_blank" rel="noopener">▶ Watch the original on Instagram</a></div>`)],
+   ['digest','Words and on-screen text read','The spoken words and any text shown on screen were written out by software on this computer.',t.speech?`<div class="q">“${esc(t.speech)}”</div>`:''],
+   ['verify',`Fact-check: ${esc(VL[t.verdict]||'not checked')}`,esc(t.plain||t.claim||'No checkable claim found.'),(srcs?`<div class="p">Pages we opened to check:${srcs}</div>`:`<div class="p">No trustworthy page was found, so the claim is not marked true or false.</div>`)+(t.note?`<details class="tn"><summary>Technical note from the fact-checker</summary>${esc(t.note)}</details>`:'')],
+   ['approve','Decision',`${rk?'Why: '+rk+'.':'No rule recorded.'}${fun?' Warning: the post looks like a sales funnel.':''}`,`<div class="lights"><span class="lt y"><i></i>Evidence read</span><span class="lt ${srcOk?'y':'r'}"><i></i>Has a source</span><span class="lt ${fun?'r':'y'}"><i></i>Not a sales funnel</span><span class="lt ${hasSec?(sec.agree?'y':'r'):''}"><i></i>Second AI ${hasSec?(sec.agree?'agrees':'wants a test first'):'not asked'}</span></div>`+(hasSec&&sec.note?`<details class="tn"><summary>What the second AI said</summary>${esc(sec.note)}</details>`:'')],
+   ['apply',`Outcome: ${esc(modeTxt)}${ap.status?' ('+esc(STAT[ap.status]||ap.status)+')':''}`,esc(ap.outcome||t.use||ap.idea||'Nothing was queued for this video.'),'']];
+  const cmap={collect:'var(--collect)',digest:'var(--digest)',verify:'var(--verify)',approve:'var(--approve)',apply:'var(--apply)'};
+  story.innerHTML=`<div class="steps"><div class="sum"><b>In one sentence:</b> ${esc(t.plain||t.caption)}</div>${steps.map((s,k)=>`<div class="stp" id="stp${k}"><span class="n" style="--c:${cmap[s[0]]}">${k+1}</span><div class="b"><div class="h">${s[1]}</div><div class="p">${s[2]}</div>${s[3]}</div></div>`).join('')}<div class="verdict" id="vd" style="visibility:hidden"><span class="stamp" style="--c:${tm[1]}">${esc(tm[0].toUpperCase())}</span><b>${esc(modeTxt)}</b>${g.project?`<span class="chip">for ${esc(g.project)}</span>`:''}</div></div>`;
+  let k=0;const go=()=>{if(k<steps.length){const el=$('stp'+k);el.classList.add('on');pick(steps[k][0]);const nd=nodes[steps[k][0]];nd.classList.add('flash');setTimeout(()=>nd.classList.remove('flash'),600);k++}else{$('vd').style.visibility='visible';clearInterval(runT)}};
+  go();runT=setInterval(go,RM?200:1700);
+}
+follow(0);
+
+/* ---------- timeline ---------- */
+const tl=$('tl');const ticks=[[7,40],[11,40],[13,40],[17,40],[20,40]];
+tl.innerHTML=`<div class="ruler">${[0,3,6,9,12,15,18,21,24].map(h=>`<span style="left:${h/24*100}%">${String(h%24).padStart(2,'0')}:00</span>`).join('')}</div>`;
+const cs=['var(--collect)','var(--digest)','var(--verify)','var(--approve)','var(--apply)'];
+ticks.forEach(([h,m])=>{const l=(h+m/60)/24*100;const c=document.createElement('div');c.className='clip';c.style.left=l+'%';c.style.width=(1.1/24*100)+'%';c.style.minWidth='46px';c.innerHTML=cs.map(x=>`<i style="background:${x}"></i>`).join('')+`<em>${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}</em>`;tl.appendChild(c)});
+const now=new Date();const hd=document.createElement('div');hd.className='head';hd.style.left=((now.getHours()+now.getMinutes()/60)/24*100)+'%';tl.appendChild(hd);
+$('tlnote').textContent='Each block is one scheduled run of the whole process: collect, digest, verify, decide, apply. The red line is the time now on your device.';
+
+/* ---------- what we kept ---------- */
+const K=D.picks;let kmode='look';
+const kg=$('kgrid');
+const SAYL={true:'Confirmed','exists-confirmed':'Tool exists',partly:'Partly true','partly-true':'Partly true',false:'False',unverifiable:'Not checkable','saved-idea':'Idea'};
+function kcards(){
+ $('kn-look').textContent=K.look.length;$('kn-say').textContent=K.say.length;
+ ['look','say'].forEach(m=>$('kt-'+m).setAttribute('aria-selected',String(m===kmode)));
+ if(kmode==='look'){kg.innerHTML=K.look.map(it=>`<article class="kc"><img src="${it.img}" alt="Still from reel ${esc(it.id)}: ${esc(it.took)}" loading="lazy"><div class="kb"><div class="kh"><span class="pill" style="--c:var(--collect)">looks good</span>${D.demo?`<span class="mono">${esc(it.id)}</span>`:`<a class="wl" href="https://www.instagram.com/reel/${esc(it.id)}/" target="_blank" rel="noopener">▶ Watch on Instagram</a>`}<span>${esc(it.who)}</span></div><div class="tk"><span class="lb">What we copied</span> ${esc(it.took)}</div><div class="us"><b>Where we used it</b> ${esc(it.used)}</div><div class="nt"><span class="lb">About the video’s claims</span> ${esc(it.claim)}</div></div></article>`).join('')}
+ else{kg.innerHTML=K.say.map(it=>{const ok=it.gate&&it.gate.truth==='verified';const lab=SAYL[it.verdict]||it.verdict||'Idea';
+  return `<article class="kc"><div class="quote">${esc(it.quote)}”</div><div class="kb"><div class="kh"><span class="pill" style="--c:var(--digest)">worth saying</span><span class="pill" style="--c:${ok?'var(--approve)':'var(--verify)'}">${esc(lab)}</span>${D.demo?`<span class="mono">${esc(it.id)}</span>`:`<a class="wl" href="https://www.instagram.com/reel/${esc(it.id)}/" target="_blank" rel="noopener">▶ Watch on Instagram</a>`}<span>${esc(it.who)}</span></div><div class="tk"><span class="lb">What we took</span> ${esc(it.took)}</div><div class="us"><b>Where we used it</b> ${esc(it.used)}</div>${(it.sources||[]).length?`<div class="nt"><span class="lb">Pages that back it up</span>${it.sources.map(u=>`<br><a href="${esc(u)}" target="_blank" rel="noopener" style="color:var(--collect)">${esc(u.replace(/^https?:\/\//,'').slice(0,44))}</a>`).join('')}</div>`:''}</div></article>`}).join('')}
+}
+['look','say'].forEach(m=>$('kt-'+m).onclick=()=>{kmode=m;kcards()});kcards();
+
+/* ---------- reliability ---------- */
+const R=D.rel||{};
+function band(p,ci){const w=ci[1]-ci[0];const g=p>=.8?['Good','var(--approve)']:p>=.6?['Fair','var(--verify)']:['Needs work','var(--bad)'];return [g[0]+(w>.3?' (too few examples to be sure)':''),g[1]]}
+function tile(title,m,sentence,c){
+ if(!m||!m.n)return `<div class="rt"><div class="rl2"><b>${title}</b></div><div class="rn" style="color:var(--dim)">not measured yet</div><div class="rl2">${sentence}</div></div>`;
+ const p=m.agree/m.n,ci=m.ci||[p,p],bd=band(p,ci);
+ return `<div class="rt"><div class="rl2"><b>${title}</b></div><div class="rn">${m.agree} of ${m.n} <span style="font-size:14px;color:var(--mute)">${Math.round(p*100)}%</span></div><div class="ci" style="--c:${c}"><i style="left:${ci[0]*100}%;width:${(ci[1]-ci[0])*100}%"></i><b style="left:calc(${p*100}% - 1px)"></b></div><div class="ci-s"><span>0%</span><span>likely between ${Math.round(ci[0]*100)}% and ${Math.round(ci[1]*100)}%</span><span>100%</span></div><div class="rl2" style="color:${bd[1]}"><b>${bd[0]}</b></div><div class="rl2">${sentence}</div></div>`}
+let rg='';
+rg+=tile('Does the automatic checker agree with a person?',R.hand_vs_gate,'Earlier, a person judged these reels true or false by hand. We compare that with the checker. A true statement inside a sales funnel counts as a miss, because the checker treats funnels as untrustworthy.','var(--verify)');
+rg+=tile('Does an independent AI agree with our labels?',R.audit,R.audit?'We picked reels at random and asked an AI from a different company to judge each one from the evidence alone, without seeing our answer.':'An AI from a different company is judging a random sample without seeing our answer.','var(--approve)');
+rg+=tile('Does a second AI agree an idea is ready to use?',R.second_model,'When it disagrees, the idea is not thrown away. It goes to a small safe test first.','var(--apply)');
+rg+=tile('Are the pages we relied on still online?',R.links?{agree:R.links.alive+R.links.blocked,n:R.links.n,ci:R.links.ci}:null,'We opened the same pages again today. Pages that block automatic visitors count as online.','var(--collect)');
+rg+=tile('Did the ideas that were tried work?',R.outcomes?{agree:R.outcomes.worked,n:R.outcomes.worked+R.outcomes.failed,ci:R.outcomes.ci}:null,'Only ideas that were really tried count. Notes that were written but not tried do not.','var(--learn)');
+rg+=`<div class="rt"><div class="rl2"><b>Same data in, same answer out?</b></div><div class="rn" style="color:${R.determinism&&R.determinism.same?'var(--approve)':'var(--bad)'}">${R.determinism?(R.determinism.same?'Yes':'No'):'not measured yet'}</div><div class="rl2">We ran the decision rules twice on the same data and compared the results. A system that changes its mind on identical input cannot be trusted.</div></div>`;
+$('rgrid').innerHTML='<p class="sent" style="grid-column:1/-1">How to read the bars: the white tick is the result. The coloured band is where the true result very likely sits (95% sure). A wide band means there were too few examples to be confident.</p>'+rg;
+let find='';
+const hv=R.hand_vs_gate;
+find+=`<div class="rfind"><h3>What these tests found, and what we changed</h3><ul>`;
+find+=`<li>Two reels that a person had judged <b>false</b> were being labelled <b>confirmed</b>, and two <b>partly true</b>. The tool they promote does exist, but the posts are sales funnels. We added a rule: a real tool inside a sales funnel is only ever tested, never used straight away. That moved about 28 ideas from “use now” to “test first”.</li>`;
+if(hv)find+=`<li>The checker agrees with the earlier hand judgements on ${hv.agree} of ${hv.n} reels. Most misses are true statements inside sales funnels, which the checker deliberately distrusts. This is a choice, shown here so that it can be questioned.</li>`;
+if(R.audit)find+=`<li>The independent AI agreed with us on ${R.audit.agree} of ${R.audit.n}. Where it disagreed, it called 3 of our 8 “confirmed” labels only “partly” (they were advice, not facts), and 4 of our 8 “sales funnel” labels simply “could not be checked” (a recipe, or a plausible story). So “confirmed” is too generous for advice, and the funnel warning relies too much on keywords. These two fixes are still open.</li>`;
+find+=`<li>Only ${R.second_model?R.second_model.agree:'?'} of ${R.second_model?R.second_model.n:'?'} ideas passed the second AI straight away. “Use now” therefore means the claim is real; whether it helps a project is settled by trying it.</li>`;
+find+=`<li>Only ${R.outcomes?R.outcomes.worked+R.outcomes.failed:'?'} ideas have been tried so far. That is too few to say the learning works, so the band above is wide on purpose.</li>`;
+find+=`</ul></div>`;
+if(R.audit&&R.audit.rows){const L={reliable:'reliable',partly:'partly',false:'false',funnel:'sales funnel',unverifiable:'could not be checked'};const O={verified:'confirmed',trial:'test first',suspicious:'sales funnel'};
+ find+=`<div class="rfind"><h3>The independent AI’s answers, one by one</h3><div class="scroll"><table class="ra"><tr><th>Reel</th><th>Our label</th><th>Independent AI</th><th>Its reason, in its own words</th></tr>${R.audit.rows.map(o=>`<tr><td class="mono">${esc(o.id)}</td><td>${esc(O[o.ours]||o.ours)}</td><td>${esc(L[o.theirs]||o.theirs)}</td><td>${esc(o.why)}</td></tr>`).join('')}</table></div></div>`}
+$('rfind').innerHTML=find;
+</script>

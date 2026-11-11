@@ -28,7 +28,7 @@ Learning rules run before G1-G7 (outcomes come from `apply.py outcome`):
 
 Then, for mode adopt|trial and a project score >= 10 (relevance.PROJECTS), it writes an `applications` row
 (status 'proposed', idea from research.use_note) unless the reel already has one, and writes the per-project
-queue analysis/apply-queue/<project>.md for Raphael, Claude and Cursor to pick up. The gate never edits reels.truth,
+queue analysis/apply-queue/<project>.md for assistants to pick up. The gate never edits reels.truth,
 never writes to Instagram, and a failed trial is recorded through scripts/apply.py outcome so it feeds back.
 Python 3.9 compatible.
 """

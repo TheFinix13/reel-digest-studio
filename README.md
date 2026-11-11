@@ -31,7 +31,7 @@ The page's reliability section reports, with confidence ranges: agreement with e
 
 ## Demo data
 
-Every video, creator, quote and picture in the demo is invented. The totals and rates are real. The private system's database, transcripts and project notes are not published.
+The five videos under "Follow one video" and "What it says" are real public reels, credited and linked, with a short quote and our own summary. The pictures are our own drawings, not frames from anyone's video. The totals and rates are real. The private system's database, transcripts and project notes are not published.
 
 ## Build
 

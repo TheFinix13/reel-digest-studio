@@ -17,18 +17,23 @@ Rules, in order (first match wins):
   G2 funnel or income claim and no source-backed 'true' -> suspicious / none
   G3 research true|exists-confirmed, a source, confidence not low -> verified / adopt
   G3b same, but the reel carries a funnel or risk flag -> partly / trial (found by the reliability audit: hand cards had called these false)
+  G3c same as G3, but the claim is advice, a heuristic or an opinion (research note admits it is untested, unclear, hype ...)
+      -> partly / trial (2026-11-11: 3 of 8 sampled 'verified' were called 'partly' by the blind auditor; 'the tool exists' is not 'the advice works')
+  G2b funnel flag only (no key/cookie/not-found flag), research partly|partly-true with a source and confidence not low
+      -> partly / trial (2026-11-11: the thing is real, the reel is a funnel; 8 gold-set reels were wrongly 'suspicious')
   G4 research partly|partly-true with a source     -> partly / trial
   G5 research saved-idea|idea-only and relevance >= 12 -> unverified / trial
   G6 hand-carded truth true with no research       -> verified / adopt (only if no risk flags)
   G7 everything else                               -> unverified / none
 Learning rules run before G1-G7 (outcomes come from `apply.py outcome`):
   F2 the idea worked in use -> verified / adopt     F4 it failed -> partly / none (never queued again)
+  H1 safety net: a reel whose hand card says false is never adopted (adopt -> trial, rule gets '+H1'); counted in reliability.py
   F1 a creator with 2+ failed trials and no worked one -> their unproven reels go to none
   F3 a rule (G4/G5) whose trials fail >= 50% over 4+ outcomes is switched off until it recovers
 
 Then, for mode adopt|trial and a project score >= 10 (relevance.PROJECTS), it writes an `applications` row
 (status 'proposed', idea from research.use_note) unless the reel already has one, and writes the per-project
-queue analysis/apply-queue/<project>.md for assistants to pick up. The gate never edits reels.truth,
+queue analysis/apply-queue/<project>.md for Raphael, Claude and Cursor to pick up. The gate never edits reels.truth,
 never writes to Instagram, and a failed trial is recorded through scripts/apply.py outcome so it feeds back.
 Python 3.9 compatible.
 """
@@ -43,28 +48,17 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PROJECTS = {
-    "Assistant": {"agent": 2, "memory": 2, "voice": 2, "skill": 2, "mcp": 2, "router": 3, "context": 2, "hook": 2},
-    "Trading": {"backtest": 3, "drawdown": 3, "position siz": 3, "risk": 1, "quant": 2, "walk-forward": 3, "sharpe": 3},
-    "Portfolio": {"dividend": 3, "etf": 2, "allocation": 3, "rebalanc": 3, "valuation": 2},
-    "Study": {"machine learning": 2, "paper": 1, "reinforcement": 3, "statistic": 2, "reproducib": 3},
-    "Career": {"job": 1, "cv": 2, "resume": 2, "interview": 2, "cover letter": 3},
-    "Hosting": {"self-host": 3, "docker": 2, "server": 1, "vpn": 2, "24/7": 2},
-    "Design": {"design system": 3, "animation": 2, "typography": 3, "tailwind": 2, "frontend": 1, "landing page": 1},
-}
-
-
-def score(text, words):
-    total, hit = 0.0, []
-    for w, wt in words.items():
-        n = len(re.findall(r"(?<![a-z0-9])" + re.escape(w), text))
-        if n:
-            total += wt * min(n, 3)
-            hit.append(w)
-    return total, hit
+sys.path.insert(0, str(ROOT / "scripts"))
+from relevance import PROJECTS, score  # noqa: E402
 
 DB = ROOT / "data" / "reels.db"
 RISK = {"funnel", "asks:password", "asks:cookies", "asks:api key", "named-thing-not-found"}
+# G3c: words the research agents use when the thing is real but the reel's advice or headline is not proven. Conservative: only the
+# research note is searched (the agent's own admission), plus a short list of advice phrasings in the claim.
+CAVEAT = re.compile(r"untested|unproven|not (?:shown|tested|verified|checked|backed|confirmed|independently)|could not confirm|no evidence|"
+                    r"no independent|opinion|subjective|hyperbole|hype\b|overstated|oversold|unclear|anecdot|creator'?s own|marketing|"
+                    r"\bnot free\b|depends on", re.I)
+ADVICE = re.compile(r"\bbest way\b|\bshould\b|\bbetter than\b|\bso good\b|\bgood way\b|\bpairs (?:well|perfectly)\b|\boutperform|\bprecise\b", re.I)
 
 
 def main() -> int:
@@ -74,7 +68,7 @@ def main() -> int:
     con = sqlite3.connect(DB)
     now = time.strftime("%Y-%m-%d %H:%M")
     rows = con.execute("""SELECT l.id, l.creator, COALESCE(l.caption,''), COALESCE(e.transcript,''), COALESCE(e.onscreen,''),
-                          r.verdict, r.confidence, r.sources, r.use_note, r.note, v.flags, h.truth
+                          r.verdict, r.confidence, r.sources, r.use_note, r.note, v.flags, h.truth, r.claim
                           FROM library l LEFT JOIN evidence e ON e.id=l.id
                           LEFT JOIN research r ON r.reel_id=l.id
                           LEFT JOIN verification v ON v.reel_id=l.id
@@ -100,7 +94,7 @@ def main() -> int:
         r_[0 if st == "worked" else 1] += 1
     burned = {c for c, (w, f) in cr.items() if f >= 2 and w == 0}          # F1: creator whose ideas keep failing
     weak_rules = {r for r, (w, f) in rl.items() if w + f >= 4 and f / (w + f) >= 0.5}  # F3: a rule that mostly fails
-    for rid, creator, cap, tr, on, verdict, conf, srcs, use, note, flags, hand in rows:
+    for rid, creator, cap, tr, on, verdict, conf, srcs, use, note, flags, hand, claim in rows:
         src = bool(json.loads(srcs or "[]")) if srcs else False
         risk = bool(RISK & set(json.loads(flags or "[]")))
         text = (cap + " " + tr + " " + on).lower()
@@ -114,10 +108,14 @@ def main() -> int:
             t, mode, rule = "unverified", "none", "F1"
         elif verdict == "false" and src:
             t, mode, rule = "false", "none", "G1"
+        elif (set(json.loads(flags or "[]")) & RISK) == {"funnel"} and verdict in ("partly", "partly-true") and src and conf != "low":
+            t, mode, rule = "partly", "trial", "G2b"        # real but a funnel: sandbox only
         elif risk and not (verdict in ("true", "exists-confirmed") and src):
             t, mode, rule = "suspicious", "none", "G2"
         elif risk and verdict in ("true", "exists-confirmed") and src:
             t, mode, rule = "partly", "trial", "G3b"        # the thing exists, but the reel is a funnel: sandbox only
+        elif verdict in ("true", "exists-confirmed") and src and conf != "low" and (CAVEAT.search(note or "") or ADVICE.search(claim or "")):
+            t, mode, rule = "partly", "trial", "G3c"        # real thing, unproven advice: sandbox only
         elif verdict in ("true", "exists-confirmed") and src and conf != "low":
             t, mode, rule = "verified", "adopt", "G3"
         elif verdict in ("partly", "partly-true") and src and "G4" not in weak_rules:
@@ -128,6 +126,8 @@ def main() -> int:
             t, mode, rule = "verified", "adopt", "G6"
         else:
             t, mode, rule = "unverified", "none", "G7"
+        if mode == "adopt" and hand == "false":                              # H1: never adopt what a hand card called false
+            mode, rule = "trial", rule + "+H1"
         if mode == "adopt" and second.get(rid) == 0:                         # R2: the other model disagrees
             mode, rule = "trial", rule + "+R2"
         target = proj if (mode != "none" and best >= 10) else ""

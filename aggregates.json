@@ -1,20 +1,20 @@
 {
  "stats": {
-  "library": 2187,
-  "evidence": 2183,
-  "tech": 36,
-  "stocks": 7,
-  "research": 717,
-  "researched_true": 121,
-  "funnels": 351,
+  "library": 2200,
+  "evidence": 2196,
+  "tech": 7,
+  "stocks": 15,
+  "research": 721,
+  "researched_true": 122,
+  "funnels": 252,
   "falsified": 4,
-  "adopt": 80,
-  "trial": 167,
+  "adopt": 73,
+  "trial": 221,
   "second_agree": 10,
   "second_disagree": 16,
   "apps": {
    "failed": 3,
-   "proposed": 24,
+   "proposed": 44,
    "rejected": 33,
    "used": 18,
    "worked": 11
@@ -23,7 +23,7 @@
    "approve": 29,
    "change": 19,
    "promote": 1,
-   "skip": 73
+   "skip": 76
   }
  },
  "rules": {
@@ -31,23 +31,25 @@
   "F2+R2": 4,
   "F4": 3,
   "G1": 4,
-  "G2": 351,
-  "G3": 72,
-  "G3+R2": 3,
-  "G3b": 35,
-  "G4": 122,
+  "G2": 215,
+  "G2b": 37,
+  "G3": 65,
+  "G3+H1": 1,
+  "G3+R2": 1,
+  "G3b": 28,
+  "G3c": 16,
+  "G4": 131,
   "G5": 3,
   "G6": 1,
-  "G7": 1582
+  "G7": 1684
  },
  "rel": {
-  "measured": "2026-11-11 01:21",
   "hand_vs_gate": {
    "n": 31,
-   "agree": 16,
+   "agree": 19,
    "ci": [
-    0.348,
-    0.68
+    0.438,
+    0.763
    ],
    "note": "hand-carded truth (true/false) against the gate's verdict; 'unverified' gate rows are counted as disagreement with a hand true/false"
   },
@@ -72,28 +74,50 @@
   "determinism": {
    "same": true,
    "runs": 2,
-   "hash": "9fe9d0ca93"
+   "hash": "c0d4ea0d14"
   },
   "links": {
    "n": 90,
-   "alive": 80,
-   "blocked": 8,
+   "alive": 76,
+   "blocked": 13,
    "dead": 1,
    "ci": [
-    0.923,
-    0.994
+    0.94,
+    0.998
    ],
    "note": "sources opened by the research agents, fetched again now"
   },
   "audit": {
-   "n": 24,
-   "agree": 16,
+   "n": 30,
+   "agree": 25,
    "ci": [
-    0.467,
-    0.82
+    0.664,
+    0.927
    ],
    "model": "gpt-5.3-codex-high",
    "note": "blind: the auditor never saw our label. Agreement counts 'reliable' for verified, 'partly/unverifiable/reliable' for trial, 'funnel/false' for suspicious."
-  }
+  },
+  "gold": {
+   "n": 100,
+   "agree": 79,
+   "ci": [
+    0.7,
+    0.858
+   ],
+   "hand_cards": {
+    "n": 31,
+    "agree": 19
+   },
+   "agent_judged": {
+    "n": 69,
+    "agree": 60
+   },
+   "false_adopted": 0,
+   "false_adopted_ids": [],
+   "false_in_trial": 6,
+   "h1_fired": 1,
+   "note": "gate truth against gold labels; the gold set was also used to tune rules G2b/G3c/funnel, so the blind audit (fresh sample) is the held-out test. Gold set for the reel pipeline. Labels: reliable|partly|false|funnel|unverifiable. source=hand-card: the 31 vetting cards (reels.truth true/false) written in earlier sessions; the label is mapped from"
+  },
+  "measured": "2026-11-11 15:31"
  }
 }

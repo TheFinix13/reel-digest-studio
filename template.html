@@ -327,7 +327,7 @@ setInterval(()=>{if(paused)return;const o=cursors[Math.floor(Math.random()*curso
 
 /* ---------- controls ---------- */
 const ctrl=$('ctrl');
-ctrl.innerHTML=`<span class="chip"><i></i>Checks Instagram every hour</span><span class="chip">Last collection: ${S.tech+S.stocks} new reels</span><span class="chip mono">${D.demo?'Example run':'Data as of '+esc(D.built)}</span>`;
+ctrl.innerHTML=`<span class="chip"><i></i>Checks Instagram twice a day (paused while Instagram asks for a login)</span><span class="chip">Last collection: ${S.tech+S.stocks} new reels</span><span class="chip mono">${D.demo?'Example run':'Data as of '+esc(D.built)}</span>`;
 const bp=document.createElement('button');bp.className='btn';bp.type='button';bp.textContent=paused?'Play':'Pause';bp.onclick=()=>{paused=!paused;bp.textContent=paused?'Play':'Pause'};
 const bs=document.createElement('button');bs.className='btn';bs.type='button';bs.textContent='Speed 1×';bs.onclick=()=>{speed=speed===1?2:speed===2?.5:1;bs.textContent='Speed '+speed+'×'};
 ctrl.append(bp,bs);
@@ -409,7 +409,7 @@ tl.innerHTML=`<div class="ruler">${[0,3,6,9,12,15,18,21,24].map(h=>`<span style=
 const cs=['var(--collect)','var(--digest)','var(--verify)','var(--approve)','var(--apply)'];
 ticks.forEach(([h,m])=>{const l=(h+m/60)/24*100;const c=document.createElement('div');c.className='clip';c.style.left=l+'%';c.style.width=(0.85/24*100)+'%';c.innerHTML=cs.map(x=>`<i style="background:${x}"></i>`).join('')+(h%6===0?`<em>${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}</em>`:'');tl.appendChild(c)});
 const now=new Date();const hd=document.createElement('div');hd.className='head';hd.style.left=((now.getHours()+now.getMinutes()/60)/24*100)+'%';tl.appendChild(hd);
-$('tlnote').textContent='Each block is one hourly run of the whole process: collect, digest, verify, decide, apply. The red line is the time now on your device.';
+$('tlnote').textContent='Each block is one scheduled run of the whole process: collect, digest, verify, decide, apply. The red line is the time now on your device.';
 
 /* ---------- what we kept ---------- */
 const K=D.picks;let kmode='look';
@@ -433,6 +433,7 @@ function tile(title,m,sentence,c){
  return `<div class="rt"><div class="rl2"><b>${title}</b></div><div class="rn">${m.agree} of ${m.n} <span style="font-size:14px;color:var(--mute)">${Math.round(p*100)}%</span></div><div class="ci" style="--c:${c}"><i style="left:${ci[0]*100}%;width:${(ci[1]-ci[0])*100}%"></i><b style="left:calc(${p*100}% - 1px)"></b></div><div class="ci-s"><span>0%</span><span>likely between ${Math.round(ci[0]*100)}% and ${Math.round(ci[1]*100)}%</span><span>100%</span></div><div class="rl2" style="color:${bd[1]}"><b>${bd[0]}</b></div><div class="rl2">${sentence}</div></div>`}
 let rg='';
 rg+=tile('Does the automatic checker agree with a person?',R.hand_vs_gate,'Earlier, a person judged these reels true or false by hand. We compare that with the checker. A true statement inside a sales funnel counts as a miss, because the checker treats funnels as untrustworthy.','var(--verify)');
+rg+=tile('Does the checker agree on a bigger hand-judged set?',R.gold,'A larger set of 100 reels judged by hand. This is the figure to watch as the set grows past the first 31.','var(--verify)');
 rg+=tile('Does an independent AI agree with our labels?',R.audit,R.audit?'We picked reels at random and asked an AI from a different company to judge each one from the evidence alone, without seeing our answer.':'An AI from a different company is judging a random sample without seeing our answer.','var(--approve)');
 rg+=tile('Does a second AI agree an idea is ready to use?',R.second_model,'When it disagrees, the idea is not thrown away. It goes to a small safe test first.','var(--apply)');
 rg+=tile('Are the pages we relied on still online?',R.links?{agree:R.links.alive+R.links.blocked,n:R.links.n,ci:R.links.ci}:null,'We opened the same pages again today. Pages that block automatic visitors count as online.','var(--collect)');
